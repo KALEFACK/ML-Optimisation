@@ -1,0 +1,14 @@
+transformers==4.38.0
+datasets==2.18.0
+torch==2.2.0
+numpy==1.26.4
+pandas==2.2.1
+scikit-learn==1.4.1
+matplotlib==3.8.3
+seaborn==0.13.2
+tqdm==4.66.2
+accelerate==0.27.2
+sentencepiece==0.2.0
+optuna==3.6.1            
+scikit-optimize==0.10.1  
+tensorboard              
