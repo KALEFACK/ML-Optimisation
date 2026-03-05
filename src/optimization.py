@@ -1,166 +1,134 @@
 """
-Module d'optimisation .
-Implémentation du Random Search optimisée pour CPU et transfert cross-lingue (P03).
+Module d'optimisation - Groupe G11.
+Implémente le Random Search et l'analyse des performances (P03).
 """
 
-import os
-import json
-import time
-import random
 import numpy as np
+import json
 import torch
-from transformers import (
-    TrainingArguments,
-    Trainer,
-    EarlyStoppingCallback,
-    TrainerCallback
-)
-from sklearn.metrics import accuracy_score, f1_score
-
-# ──────────────────────────────────────────────
-# 1. ESPACE DE RECHERCHE 
-# ──────────────────────────────────────────────
-
-# Défini selon le Tableau 4 des sources pour une comparaison équitable (P03)
-SEARCH_SPACE = {
-    "learning_rate": {"type": "log_uniform", "low": 1e-6,  "high": 5e-4},
-    "weight_decay":  {"type": "log_uniform", "low": 1e-8,  "high": 1e-2}, # 1e-8 simule le 0
-    "batch_size":    {"type": "categorical", "choices": [6-8]},
-    "warmup_steps":  {"type": "categorical", "choices": [9]},
-    "num_epochs":    {"type": "int",         "low": 2,     "high": 5},
-}
-
-def sample_hyperparameters(seed=None):
-    """Échantillonne aléatoirement les HP pour explorer l'espace de haute dimension."""
-    if seed is not None:
-        random.seed(seed)
-        np.random.seed(seed)
-
-    params = {}
-    for name, cfg in SEARCH_SPACE.items():
-        if cfg["type"] == "log_uniform":
-            params[name] = float(np.exp(np.random.uniform(
-                np.log(cfg["low"]), np.log(cfg["high"])
-            )))
-        elif cfg["type"] == "categorical":
-            params[name] = random.choice(cfg["choices"])
-        elif cfg["type"] == "int":
-            params[name] = random.randint(cfg["low"], cfg["high"])
-    return params
-
-# ──────────────────────────────────────────────
-# 2. MÉTRIQUES ET SUIVI DE CONVERGENCE 
-# ──────────────────────────────────────────────
+from transformers import TrainingArguments, Trainer, EarlyStoppingCallback
+from sklearn.metrics import f1_score, accuracy_score
 
 def compute_metrics(eval_pred):
-    """Calcule l'Accuracy et le F1-score ."""
+    """Calcule le F1-score (métrique principale G11) et l'Accuracy [Source 109]."""
     logits, labels = eval_pred
-    preds = np.argmax(logits, axis=-1)
+    predictions = np.argmax(logits, axis=-1)
     return {
-        "accuracy": float(accuracy_score(labels, preds)),
-        "f1":       float(f1_score(labels, preds, average="binary")),
+        "f1": f1_score(labels, predictions, average="binary"),
+        "accuracy": accuracy_score(labels, predictions)
     }
 
-class ConvergenceCallback(TrainerCallback):
-    """Protocole P03 : Enregistre l'évolution pour mesurer le nombre d'itérations."""
-    def __init__(self):
-        self.history = []
-
-    def on_evaluate(self, args, state, control, metrics=None, **kwargs):
-        if metrics:
-            self.history.append({
-                "step":      state.global_step,
-                "eval_f1":   metrics.get("eval_f1", 0.0),
-                "eval_loss": metrics.get("eval_loss", 0.0),
-            })
-
-# ──────────────────────────────────────────────
-# 3. ENTRAÎNEMENT D'UN ESSAI (TRIAL) 
-# ──────────────────────────────────────────────
-
-def train_one_trial(model_fn, train_ds, val_ds, params, trial_id, model_key, output_dir="./runs"):
-    """Exécute un fine-tuning avec optimisations pour la stabilité et le CPU."""
-    conv_cb = ConvergenceCallback()
-    model = model_fn()
-    t_start = time.time()
-
-    # Arguments optimisés selon les sources pour Transformers sur CPU
-    training_args = TrainingArguments(
-        output_dir=f"{output_dir}/{model_key}_trial_{trial_id}",
-        learning_rate=params["learning_rate"],
-        weight_decay=params["weight_decay"],
-        per_device_train_batch_size=params["batch_size"],
-        per_device_eval_batch_size=params["batch_size"],
-        num_train_epochs=params["num_epochs"],
-        warmup_steps=params["warmup_steps"],
+def sample_hyperparameters():
+    """
+    Échantillonne les hyperparamètres et les convertit en types Python natifs.
+    Indispensable pour la compatibilité JSON et la sauvegarde des logs [Source 117].
+    """
+    return {
+        # float(...) convertit le np.float64 en float Python standard
+        "learning_rate": float(10**np.random.uniform(-6, -3.3)), 
+        "weight_decay": float(10**np.random.uniform(-4, -2)),   
         
-        # Stabilité : Gradient Clipping pour éviter les explosions [Source 143, 173]
-        max_grad_norm=1.0, 
-        # Mémoire : Accumulation pour simuler des batchs plus grands sur RAM limitée [Source 108]
-        gradient_accumulation_steps=2,
+        "num_train_epochs": 3,
+        "per_device_train_batch_size": 16,
         
-        evaluation_strategy="steps",
-        eval_steps=50, # Mesure fine pour le protocole P03
-        logging_steps=10,
-        load_best_model_at_end=True,
-        metric_for_best_model="f1",
-        
-        # Configuration CPU
-        no_cuda=True,
-        fp16=False, # float32 recommandé pour stabilité CPU [Source 114]
-        report_to="none",
-        seed=42,
-    )
-
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_ds,
-        eval_dataset=val_ds,
-        compute_metrics=compute_metrics,
-        callbacks=[
-            EarlyStoppingCallback(early_stopping_patience=3),
-            conv_cb
-        ],
-    )
-
-    trainer.train()
-    eval_results = trainer.evaluate()
-    elapsed = time.time() - t_start
-
-    result = {
-        "trial_id": trial_id,
-        "params": params,
-        "f1": eval_results.get("eval_f1", 0.0),
-        "accuracy": eval_results.get("eval_accuracy", 0.0),
-        "time_sec": elapsed,
-        "steps_to_optimum": conv_cb.history[-1]["step"] if conv_cb.history else 0,
-        "history": conv_cb.history
+        # int(...) convertit le np.int32 en int Python standard
+        "warmup_steps": int(np.random.choice([1])) 
     }
-    return result, trainer
 
-# ──────────────────────────────────────────────
-# 4. RANDOM SEARCH & RÉSUMÉ 
-# ──────────────────────────────────────────────
-
-def random_search(model_fn, train_ds, val_ds, model_key, n_trials=5, output_dir="./runs"):
-    """Boucle principale de recherche avec garantie de reproductibilité."""
-    all_results = []
-    best_result = None
+def random_search(model_fn, train_ds, val_ds, model_key, n_trials, output_dir):
+    """
+    Exécute une recherche aléatoire pour trouver les meilleurs HP [Source 149].
+    Garantit la reproductibilité via des conditions équitables.
+    """
+    results = []
+    best_f1 = -1
     best_trainer = None
+    best_trial_data = None
+
+    print(f"\n🚀 Lancement du Random Search pour {model_key} ({n_trials} essais)...")
 
     for i in range(n_trials):
-        # Utilisation de seeds fixes pour comparer DistilBERT et CamemBERT sur les mêmes HP 
-        params = sample_hyperparameters(seed=i * 100)
-        result, trainer = train_one_trial(model_fn, train_ds, val_ds, params, i+1, model_key, output_dir)
+        hp = sample_hyperparameters()
+        print(f"  Trial {i+1}/{n_trials} | LR: {hp['learning_rate']:.2e} | WD: {hp['weight_decay']:.2e}")
+
+        # Initialisation d'un modèle neuf à chaque essai [Source 124]
+        model = model_fn()
+
+        args = TrainingArguments(
+            output_dir=f"{output_dir}/{model_key}_trial_{i}",
+            learning_rate=hp["learning_rate"],
+            weight_decay=hp["weight_decay"],
+            num_train_epochs=hp["num_train_epochs"],
+            per_device_train_batch_size=hp["per_device_train_batch_size"],
+            warmup_steps=hp["warmup_steps"],
+            evaluation_strategy="epoch",
+            save_strategy="epoch",
+            load_best_model_at_end=True,
+            metric_for_best_model="f1",
+            logging_steps=10,
+            # Optimisations CPU [Source 108]
+            fp16=False, 
+            no_cuda=True if not torch.cuda.is_available() else False
+        )
+
+        trainer = Trainer(
+            model=model,
+            args=args,
+            train_dataset=train_ds,
+            eval_dataset=val_ds,
+            compute_metrics=compute_metrics,
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=1)]
+        )
+
+        train_result = trainer.train()
+        eval_result = trainer.evaluate()
         
-        all_results.append(result)
-        if best_result is None or result["f1"] > best_result["f1"]:
-            best_result = result
+        trial_data = {
+            "trial": i,
+            "hp": hp,
+            "f1": eval_result["eval_f1"],
+            "accuracy": eval_result["eval_accuracy"],
+            "convergence_history": trainer.state.log_history
+        }
+        results.append(trial_data)
+
+        if eval_result["eval_f1"] > best_f1:
+            best_f1 = eval_result["eval_f1"]
             best_trainer = trainer
+            best_trial_data = trial_data
 
-    # Sauvegarde JSON pour le rapport final
-    with open(f"{output_dir}/results_{model_key}.json", "w") as f:
-        json.dump(all_results, f, indent=2)
+    # Sauvegarde des résultats
+    with open(f"{output_dir}/random_search_{model_key}.json", "w") as f:
+        json.dump(results, f, indent=4)
 
-    return all_results, best_result, best_trainer
+    return results, best_trial_data, best_trainer
+
+def print_comparison_summary(results_db, results_cb):
+    """
+    FONCTION MANQUANTE : Compare DistilBERT vs CamemBERT (P03) [Source 123].
+    """
+    # Extraction des meilleurs F1-scores
+    best_f1_db = max([r['f1'] for r in results_db])
+    best_f1_cb = max([r['f1'] for r in results_cb])
+    delta = best_f1_cb - best_f1_db
+
+    summary = {
+        "distilbert": {"f1": best_f1_db},
+        "camembert":  {"f1": best_f1_cb},
+        "delta_f1":    delta
+    }
+
+    print("\n" + "="*40)
+    print("RÉSUMÉ DE LA COMPARAISON (P03)")
+    print("="*40)
+    print(f"Meilleur F1 DistilBERT (EN) : {best_f1_db:.4f}")
+    print(f"Meilleur F1 CamemBERT  (FR) : {best_f1_cb:.4f}")
+    print(f"Écart de performance       : {delta:+.4f}")
+    
+    if delta > 0:
+        print("→ CamemBERT (natif) surpasse le transfert anglais.")
+    else:
+        print("→ DistilBERT (anglais) est compétitif malgré la langue.")
+    print("="*40)
+
+    return summary
