@@ -1,5 +1,5 @@
 """
-Module de configuration des modèles - Groupe G11.
+Module de configuration des modèles.
 Optimisation pour CPU et support du transfert cross-lingue (P03).
 """
 
@@ -9,7 +9,7 @@ import numpy as np
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from torch.quantization import quantize_dynamic
 
-# Configuration des modèles selon les spécifications du projet [Source 112]
+# Configuration des modèles selon les spécifications du projet
 MODELS_CONFIG = {
     "distilbert": {
         "id": "distilbert-base-uncased",
@@ -32,7 +32,7 @@ MODELS_CONFIG = {
 # ──────────────────────────────────────────────
 
 def setup_reproducibility(seed=42):
-    """Fixe les graines pour la rigueur méthodologique [Source 124]."""
+    """Fixe les graines pour la rigueur méthodologique."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -42,7 +42,7 @@ def setup_reproducibility(seed=42):
     torch.use_deterministic_algorithms(False) 
 
 def get_device():
-    """Détecte le matériel et optimise les threads CPU [Source 114]."""
+    """Détecte le matériel et optimise les threads CPU."""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type == "cpu":
         # Optimisation cruciale pour les Transformers sur CPU
@@ -61,7 +61,7 @@ def load_model(model_key, device, verbose=False):
     cfg = MODELS_CONFIG[model_key]
     tokenizer = AutoTokenizer.from_pretrained(cfg['id'])
     
-    # Utilisation de float32 sur CPU pour la stabilité [Source 114]
+    # Utilisation de float32 sur CPU pour la stabilité
     model = AutoModelForSequenceClassification.from_pretrained(
         cfg['id'], 
         num_labels=2,
@@ -77,7 +77,7 @@ def fresh_model_fn(model_key, device):
     """
     Retourne une fonction d'initialisation (model_init).
     Indispensable pour le Random Search afin de réinitialiser les poids
-    à chaque nouvel essai (Trial) [Sources 124, 151].
+    à chaque nouvel essai (Trial).
     """
     cfg = MODELS_CONFIG[model_key]
     
@@ -98,7 +98,7 @@ def fresh_model_fn(model_key, device):
 def quantize_model(model):
     """
     Réduction de l'empreinte mémoire d'environ 4x via quantification dynamique.
-    Essentiel pour CamemBERT sur CPU [Source 125].
+    Essentiel pour CamemBERT sur CPU.
     """
     return quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
 
@@ -122,7 +122,7 @@ def freeze_encoder(model, model_key):
 # ──────────────────────────────────────────────
 
 def print_model_comparison():
-    """Affiche le tableau comparatif pour la problématique P03 [Source 116]."""
+    """Affiche le tableau comparatif pour la problématique P03."""
     print("\n" + "="*65)
     print("COMPARAISON TECHNIQUE DES MODÈLES (PROBLÉMATIQUE P03)")
     print("="*65)

@@ -24,12 +24,12 @@ from src.visualisation import (compute_loss_landscape, compute_sharpness,
 
 CONFIG = {
     # Sous-échantillonnage équilibré pour CPU
-    "n_per_class_train": 200,   # Total 400
-    "n_per_class_val":    50,   # Total 100
-    "n_per_class_test":   50,   # Total 100
+    "n_per_class_train": 500,  
+    "n_per_class_val":    100,  
+    "n_per_class_test":   100,  
 
     # Hyperparamètres et Random Search
-    "n_trials":   5,            # À augmenter pour le rapport final
+    "n_trials":   6,  # Réduit pour CPU, mais suffisant pour des tendances claires 
     "max_length": 128,          # Sequence truncation pour RAM limitée
     
     # Améliorations de généralisation 
@@ -42,7 +42,7 @@ CONFIG = {
     "seed": 42,
 }
 
-# Initialisation de la reproductibilité [Sources 151, 185]
+# Initialisation de la reproductibilité
 os.makedirs(CONFIG["output_dir"],  exist_ok=True)
 os.makedirs(CONFIG["figures_dir"], exist_ok=True)
 np.random.seed(CONFIG["seed"])
@@ -80,7 +80,7 @@ df_tok = analyze_tokenizer_comparison(tok_db, tok_cb,
 plot_tokenizer_analysis(df_tok, save_path=f"{CONFIG['figures_dir']}/tokenizer_analysis.png")
 
 # ──────────────────────────────────────────────
-# ÉTAPE 4 & 5 : TOKENISATION ET RANDOM SEARCH
+# ÉTAPE 4 : TOKENISATION 
 # ──────────────────────────────────────────────
 
 train_db = tokenize_dataset(train_raw, tok_db, CONFIG["max_length"])
@@ -91,7 +91,7 @@ val_cb   = tokenize_dataset(val_raw,   tok_cb, CONFIG["max_length"])
 # Exécution du Random Search sous conditions équitables
 # Inclut AdamW, Cosine Annealing et Warmup en interne 
 # ──────────────────────────────────────────────
-# ÉTAPE 5 : RANDOM SEARCH — CORRIGÉE
+# ÉTAPE 5 : RANDOM SEARCH 
 # ──────────────────────────────────────────────
 
 # L'entraînement doit se faire en float32 sur CPU.
@@ -117,11 +117,11 @@ results_cb, best_cb, trainer_cb = random_search(
 # ÉTAPE 6 : LOSS LANDSCAPE ET SHARPNESS
 # ──────────────────────────────────────────────
 
-# Évaluation sur petit subset pour économiser le CPU [Source 120]
+# Évaluation sur petit subset pour économiser le CPU
 alphas_db, losses_db = compute_loss_landscape(trainer_db.model, val_db, n_points=12, epsilon=0.05)
 alphas_cb, losses_cb = compute_loss_landscape(trainer_cb.model, val_cb, n_points=12, epsilon=0.05)
 
-# Calcul de la métrique de platitude (Equation 1)
+# Calcul de la métrique de platitude
 sharp_db = compute_sharpness(alphas_db, losses_db)
 sharp_cb = compute_sharpness(alphas_cb, losses_cb)
 

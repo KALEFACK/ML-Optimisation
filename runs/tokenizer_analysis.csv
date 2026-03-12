@@ -1,0 +1,5 @@
+phrase,n_mots,n_tokens_distilbert,n_tokens_camembert,ratio_distilbert,ratio_camembert
+Ce film est absolument magnifique et touchant.,7,15,8,2.143,1.143
+"Une perte de temps totale, l'intrigue est creuse.",8,17,12,2.125,1.5
+Les acteurs sont bons mais la réalisation laisse à désirer.,10,18,11,1.8,1.1
+Un chef-d'œuvre du cinéma français contemporain.,6,16,11,2.667,1.833

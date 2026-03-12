@@ -1,6 +1,6 @@
 """
-Module d'optimisation - Groupe G11.
-Implémente le Random Search et l'analyse des performances (P03).
+Module d'optimisation .
+Implémente le Random Search et l'analyse des performances.
 """
 
 import numpy as np
@@ -10,7 +10,7 @@ from transformers import TrainingArguments, Trainer, EarlyStoppingCallback
 from sklearn.metrics import f1_score, accuracy_score
 
 def compute_metrics(eval_pred):
-    """Calcule le F1-score (métrique principale G11) et l'Accuracy [Source 109]."""
+    """Calcule le F1-score  et l'Accuracy."""
     logits, labels = eval_pred
     predictions = np.argmax(logits, axis=-1)
     return {
@@ -21,14 +21,14 @@ def compute_metrics(eval_pred):
 def sample_hyperparameters():
     """
     Échantillonne les hyperparamètres et les convertit en types Python natifs.
-    Indispensable pour la compatibilité JSON et la sauvegarde des logs [Source 117].
+    Indispensable pour la compatibilité JSON et la sauvegarde des logs .
     """
     return {
         # float(...) convertit le np.float64 en float Python standard
         "learning_rate": float(10**np.random.uniform(-6, -3.3)), 
         "weight_decay": float(10**np.random.uniform(-4, -2)),   
         
-        "num_train_epochs": 3,
+        "num_train_epochs": 3,  # Fixé pour CPU, mais peut être augmenté pour GPU
         "per_device_train_batch_size": 16,
         
         # int(...) convertit le np.int32 en int Python standard
@@ -37,7 +37,7 @@ def sample_hyperparameters():
 
 def random_search(model_fn, train_ds, val_ds, model_key, n_trials, output_dir):
     """
-    Exécute une recherche aléatoire pour trouver les meilleurs HP [Source 149].
+    Exécute une recherche aléatoire pour trouver les meilleurs HP.
     Garantit la reproductibilité via des conditions équitables.
     """
     results = []
@@ -45,13 +45,13 @@ def random_search(model_fn, train_ds, val_ds, model_key, n_trials, output_dir):
     best_trainer = None
     best_trial_data = None
 
-    print(f"\n🚀 Lancement du Random Search pour {model_key} ({n_trials} essais)...")
+    print(f"\n Lancement du Random Search pour {model_key} ({n_trials} essais)...")
 
     for i in range(n_trials):
         hp = sample_hyperparameters()
         print(f"  Trial {i+1}/{n_trials} | LR: {hp['learning_rate']:.2e} | WD: {hp['weight_decay']:.2e}")
 
-        # Initialisation d'un modèle neuf à chaque essai [Source 124]
+        # Initialisation d'un modèle neuf à chaque essai
         model = model_fn()
 
         args = TrainingArguments(
@@ -66,7 +66,7 @@ def random_search(model_fn, train_ds, val_ds, model_key, n_trials, output_dir):
             load_best_model_at_end=True,
             metric_for_best_model="f1",
             logging_steps=10,
-            # Optimisations CPU [Source 108]
+            # Optimisations CPU 
             fp16=False, 
             no_cuda=True if not torch.cuda.is_available() else False
         )
@@ -105,7 +105,7 @@ def random_search(model_fn, train_ds, val_ds, model_key, n_trials, output_dir):
 
 def print_comparison_summary(results_db, results_cb):
     """
-    FONCTION MANQUANTE : Compare DistilBERT vs CamemBERT (P03) [Source 123].
+    FONTION DE COMPARAISON: Compare DistilBERT vs CamemBERT.
     """
     # Extraction des meilleurs F1-scores
     best_f1_db = max([r['f1'] for r in results_db])
@@ -119,7 +119,7 @@ def print_comparison_summary(results_db, results_cb):
     }
 
     print("\n" + "="*40)
-    print("RÉSUMÉ DE LA COMPARAISON (P03)")
+    print("RÉSUMÉ DE LA COMPARAISON")
     print("="*40)
     print(f"Meilleur F1 DistilBERT (EN) : {best_f1_db:.4f}")
     print(f"Meilleur F1 CamemBERT  (FR) : {best_f1_cb:.4f}")

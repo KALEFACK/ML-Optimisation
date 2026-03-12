@@ -23,7 +23,7 @@ def compute_loss_landscape(model, dataset, n_points=12, epsilon=0.05, device="cp
     # Sauvegarde des paramètres originaux
     original_params = [p.clone().detach() for p in model.parameters()]
     
-    # Génération d'une direction aléatoire normalisée [Source 120]
+    # Génération d'une direction aléatoire normalisée 
     direction = [torch.randn_like(p) for p in original_params]
     norm = sum(torch.norm(d) for d in direction)
     direction = [d / norm for d in direction]
@@ -43,7 +43,7 @@ def compute_loss_landscape(model, dataset, n_points=12, epsilon=0.05, device="cp
             count = 0
             for i in range(min(len(dataset), 50)): 
                 # OPTIMISATION : On ne garde que les colonnes tokenisées
-                # On exclut 'label' et 'review' (qui est une chaîne de caractères)
+                
                 inputs = {
                     k: torch.tensor([v]) 
                     for k, v in dataset[i].items() 
@@ -82,11 +82,11 @@ def compute_sharpness(alphas, losses):
 # ──────────────────────────────────────────────
 
 def plot_loss_landscapes(alphas_db, losses_db, alphas_cb, losses_cb, save_path):
-    """Visualise la courbure des minima pour comparer la généralisation [Source 160]."""
+    """Visualise la courbure des minima pour comparer la généralisation."""
     plt.figure(figsize=(10, 6))
     plt.plot(alphas_db, losses_db, 'r-o', label='DistilBERT (Anglais)')
     plt.plot(alphas_cb, losses_cb, 'b-o', label='CamemBERT (Français)')
-    plt.title("Visualisation 1D du Loss Landscape (P03)")
+    plt.title("Visualisation 1D du Loss Landscape")
     plt.xlabel("Direction de perturbation (alpha)")
     plt.ylabel("Loss")
     plt.legend()
@@ -95,7 +95,7 @@ def plot_loss_landscapes(alphas_db, losses_db, alphas_cb, losses_cb, save_path):
     plt.close()
 
 def plot_convergence(history_db, history_cb, save_path):
-    """Compare la vitesse d'apprentissage (P03)."""
+    """Compare la vitesse d'apprentissage."""
     plt.figure(figsize=(10, 6))
     
     # Extraction des pertes d'évaluation depuis les logs de Trainer
@@ -114,7 +114,7 @@ def plot_convergence(history_db, history_cb, save_path):
     plt.close()
 
 def plot_tokenizer_analysis(df_tok, save_path):
-    """Analyse l'adaptation du tokenizer pour le transfert cross-lingue [Source 116]."""
+    """Analyse l'adaptation du tokenizer pour le transfert cross-lingue."""
     plt.figure(figsize=(8, 5))
     sns.barplot(data=df_tok, x='Model', y='Tokens_per_Word')
     plt.title("Fragmentation du Tokenizer (Ratio Tokens/Mot)")
@@ -123,7 +123,7 @@ def plot_tokenizer_analysis(df_tok, save_path):
     plt.close()
 
 def plot_random_search_comparison(results_db, results_cb, save_path):
-    """Visualise la distribution des performances du Random Search [Source 150]."""
+    """Visualise la distribution des performances du Random Search."""
     data = []
     for r in results_db: data.append({'Model': 'DistilBERT', 'F1': r['f1']})
     for r in results_cb: data.append({'Model': 'CamemBERT', 'F1': r['f1']})

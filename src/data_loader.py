@@ -1,5 +1,5 @@
 """
-Module de chargement et traitement des données - Groupe G11.
+Module de chargement et traitement des données.
 Support pour Allociné (D05) et analyse de fragmentation (P03).
 """
 
