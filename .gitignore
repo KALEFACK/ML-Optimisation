@@ -3,3 +3,7 @@ runs/*/checkpoint-*/
 runs/**/*.bin
 runs/**/*.pt
 runs/**/*.safetensors
+runs/**/events.out.tfevents.*
+__pycache__/
+*.pyc
+*.pyo
